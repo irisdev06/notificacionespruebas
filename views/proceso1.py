@@ -47,6 +47,7 @@ def subir_archivo():
     return None, None
 
 colores = ['#FFB897', '#B8E6A7', '#809bce', "#64a09d", '#CBE6FF', '#E6E6FA']
+
 # ------------------------------------------------------------------------------ GRÁFICOS BARRAS---------------------------------------------------------------------------------
 def graficas_barras(df, colores, nombre_hoja):
     # Agrupar por MES y NOTIFICADOR y contar los registros
@@ -65,12 +66,19 @@ def graficas_barras(df, colores, nombre_hoja):
     ax = conteo.plot(kind='bar', figsize=(fig_width, fig_height), color=colores)
 
     # Personalizar la gráfica
-    ax.set_title(f'Conteo de NOTIFICADOR por MES - {nombre_hoja}')
     ax.set_xlabel('Mes')
     ax.set_ylabel('Número de Datos')
 
     # Ajustar la leyenda para que siempre esté visible
     ax.legend(title='NOTIFICADOR', bbox_to_anchor=(1.2, 1), loc='upper left', fontsize=10)
+
+    # Añadir los números encima de cada barra
+    for p in ax.patches:
+        ax.annotate(f'{p.get_height()}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    xytext=(0, 5),  # Desplazamiento del texto
+                    textcoords='offset points',
+                    ha='center', va='bottom', fontsize=10, color='black')
 
     # Guardar la gráfica como imagen
     grafico_path = f"{nombre_hoja}_grafico_barras.png"
@@ -78,7 +86,6 @@ def graficas_barras(df, colores, nombre_hoja):
 
     # Devolver la ruta de la imagen guardada
     return grafico_path
-
 
 
 
@@ -96,7 +103,6 @@ def graficas_pastel(df, nombre_hoja):
     ax.pie(conteo, labels=conteo.index, autopct='%1.1f%%', startangle=90, colors=colores)
 
     # Personalizar la gráfica
-    ax.set_title(f'Distribución por MES - {nombre_hoja}')
     ax.legend(title='Meses', loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10)
 
     # Guardar la gráfica como imagen
