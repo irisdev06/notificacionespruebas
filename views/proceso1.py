@@ -1,5 +1,6 @@
 from openpyxl.styles import Border, Side, PatternFill
 from openpyxl import load_workbook
+from openpyxl.drawing.image import Image
 from openpyxl.utils.dataframe import dataframe_to_rows
 from io import BytesIO
 import streamlit as st
@@ -44,7 +45,41 @@ def subir_archivo():
 
     return None, None
 
+# ------------------------------------------------------------------------------ GRÁFICOS BARRAS---------------------------------------------------------------------------------
+def graficas_barras(df, colores, nombre_hoja):
+    # Agrupar por MES y NOTIFICADOR y contar los registros
+    conteo = df.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
+    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
 
+    # Calcular el tamaño dinámico del gráfico en función de los datos
+    num_meses = len(conteo)
+    num_notificadores = len(conteo.columns)
+
+    # Establecer tamaño de la figura dinámicamente, aumentamos el tamaño
+    fig_width = max(16, num_meses * 1.3)  # Ancho del gráfico ajustado significativamente
+    fig_height = max(8, num_notificadores * 1.0)  # Alto del gráfico ajustado significativamente
+
+    # Crear gráfico de barras agrupadas
+    ax = conteo.plot(kind='bar', figsize=(fig_width, fig_height), color=colores)
+
+    # Personalizar la gráfica
+    ax.set_title(f'Conteo de NOTIFICADOR por MES - {nombre_hoja}')
+    ax.set_xlabel('Mes')
+    ax.set_ylabel('Número de Datos')
+
+    # Ajustar la leyenda dentro del gráfico
+    ax.legend(title='NOTIFICADOR', loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, frameon=False)
+
+    # Configurar fondo transparente al guardar
+    grafico_path = f"{nombre_hoja}_grafico.png"
+    ax.get_figure().savefig(grafico_path, transparent=True, bbox_inches="tight")
+
+    # Devolver la ruta de la imagen guardada
+    return grafico_path
+
+
+
+# ------------------------------------------------------------------------------ TABLAS ---------------------------------------------------------------------------------
 
 def generar_tablas_dto_y_pcl(archivo_subido):
     # Configurar idioma a español para nombres de meses
@@ -67,7 +102,6 @@ def generar_tablas_dto_y_pcl(archivo_subido):
         total_general = conteo['TOTAL'].sum()
         conteo['PORCENTAJE'] = (conteo['TOTAL'] / total_general * 100).round(2).astype(str) + '%'
 
-
         fila_total = pd.DataFrame({
             'MES': ['Total general'],
             'TOTAL': [total_general],
@@ -75,9 +109,9 @@ def generar_tablas_dto_y_pcl(archivo_subido):
         })
         tabla_final = pd.concat([conteo, fila_total], ignore_index=True)
 
+        # Crear o reemplazar la hoja de Excel
         if nombre_hoja in libro.sheetnames:
             del libro[nombre_hoja]
-
         hoja = libro.create_sheet(nombre_hoja)
 
         borde = Border(
@@ -111,17 +145,29 @@ def generar_tablas_dto_y_pcl(archivo_subido):
                 hoja[f'B{i}'].fill = fondo_gris
                 hoja[f'C{i}'].fill = fondo_gris
 
-    # Leer hojas
+        # Llamar a la función graficas_barras para generar el gráfico
+        grafico_path = graficas_barras(df, colores, nombre_hoja)
+
+        # Insertar el gráfico como imagen
+        img = Image(grafico_path)
+        hoja.add_image(img, 'E5')  # Inserta la imagen en la celda E5
+
+    # Leer las hojas DTO y PCL
     df_dto = pd.read_excel(archivo_subido, sheet_name='DTO', parse_dates=['FECHA_VISADO'])
     df_pcl = pd.read_excel(archivo_subido, sheet_name='PCL', parse_dates=['FECHA_VISADO'])
 
+    colores = ['#FFB897', '#B8E6A7', '#809bce', "#64a09d", '#CBE6FF']
+
+    # Crear las hojas con las tablas y los gráficos
     crear_hoja("TABLA MES DTO", df_dto)
     crear_hoja("TABLA MES PCL", df_pcl)
 
+    # Guardar el archivo con las hojas y gráficos
     output = BytesIO()
     libro.save(output)
     output.seek(0)
     return output
+
 
 
 def descargar_excel(output, nombre="archivo_procesado.xlsx"):
