@@ -9,13 +9,18 @@ import matplotlib.pyplot as plt
 from openpyxl.drawing.image import Image
 import csv
 
-# Colores para las gráficas
+# Colores 
 colores = ['#FFB897', '#B8E6A7', '#809bce', "#64a09d", '#CBE6FF', '#E6E6FA']
+# Meses 
+meses_en_espanol = {
+    1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio', 
+    7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+}
 
 # ------------------------------------------------------------------------------- GRÁFICOS DE BARRAS -------------------------------------------------------------
 def graficas_barras(df, colores, nombre_hoja):
     conteo = df.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
-    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
+    conteo.index = conteo.index.map(lambda m: meses_en_espanol[m].capitalize())
     num_meses = len(conteo)
     num_notificadores = len(conteo.columns)
     fig_width = max(12, num_meses * 1.2)
@@ -42,7 +47,7 @@ def graficas_barras_comparativa(df, nombre_hoja):
     df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
     
     conteo = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
-    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
+    conteo.index = conteo.index.map(lambda m: meses_en_espanol[m].capitalize())
     
     # Crear la gráfica de barras
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -68,7 +73,7 @@ def graficas_barras_belisario_utmdl(df, nombre_hoja, mes):
     df_filtrado = df[(df['NOTIFICADOR'].isin(['BELISARIO', 'UTMDL'])) & (df['MES'] == mes)]
     
     conteo = df_filtrado.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
-    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
+    conteo.index = conteo.index.map(lambda m: meses_en_espanol[m].capitalize())
     
     # Crear la gráfica de barras
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -91,7 +96,7 @@ def graficas_barras_belisario_utmdl(df, nombre_hoja, mes):
 # ------------------------------------------------------------------------------- GRÁFICOS DE PASTEL -------------------------------------------------------------
 def graficas_pastel(df, nombre_hoja):
     conteo = df.groupby('MES').size()
-    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())  
+    conteo.index = conteo.index.map(lambda m: meses_en_espanol[m].capitalize())  
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.pie(conteo, labels=conteo.index, autopct='%1.1f%%', startangle=90, colors=colores)
     ax.legend(title='Meses', loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10)
@@ -115,6 +120,22 @@ def graficas_pastel_belisario_utmdl(df, nombre_hoja):
     plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
     return grafico_path
 
+def graficapastel_ano(df, nombre_hoja):
+    # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
+    df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
+    
+    # Crear gráfico de pastel comparativo por notificadores
+    conteo = df_comparativa.groupby('NOTIFICADOR').size()
+    
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.pie(conteo, labels=conteo.index, autopct='%1.1f%%', startangle=90, colors=colores)
+    ax.legend(title='Notificadores', loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10)
+
+    # Guardar el gráfico en un archivo
+    grafico_path = f"{nombre_hoja}_grafico_pastel_ano.png"
+    plt.tight_layout()
+    plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
+    return grafico_path
 # ------------------------------------------------------------------------------- HOJAS -------------------------------------------------------------
 # Hoja por Mes Seleccionado
 def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
@@ -154,25 +175,15 @@ def crear_comparativa_ano_dto(libro, df_dto):
     # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
     df_comparativa = df_dto[df_dto['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
 
-    # Crear la tabla comparativa por mes
-    tabla_comparativa = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
-    tabla_comparativa.index = tabla_comparativa.index.map(lambda m: calendar.month_name[m].capitalize())
-
-    # Escribir la tabla comparativa en la hoja
-    for i, row in enumerate(dataframe_to_rows(tabla_comparativa, index=True, header=True), start=1):
-        for j, value in enumerate(row, start=1):
-            hoja.cell(row=i, column=j, value=value)
-
     # Generar el gráfico de barras comparativo
     grafico_barras_comparativa_path = graficas_barras_comparativa(df_comparativa, "COMPARATIVA AÑO DTO")
     img_comparativa_barras = Image(grafico_barras_comparativa_path)
     hoja.add_image(img_comparativa_barras, 'E5')
 
     # Generar gráfico de pastel comparativo
-    grafico_pastel_comparativa_path = graficas_pastel_belisario_utmdl(df_comparativa, "COMPARATIVA AÑO DTO")
+    grafico_pastel_comparativa_path = graficapastel_ano(df_comparativa, "COMPARATIVA AÑO DTO")
     img_comparativa_pastel = Image(grafico_pastel_comparativa_path)
     hoja.add_image(img_comparativa_pastel, 'E20')
-
 # Hoja "COMPARATIVA AÑO PCL"
 def crear_comparativa_ano_pcl(libro, df_pcl):
     if "COMPARATIVA AÑO PCL" in libro.sheetnames:
@@ -182,22 +193,13 @@ def crear_comparativa_ano_pcl(libro, df_pcl):
     # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
     df_comparativa = df_pcl[df_pcl['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
 
-    # Crear la tabla comparativa por mes
-    tabla_comparativa = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
-    tabla_comparativa.index = tabla_comparativa.index.map(lambda m: calendar.month_name[m].capitalize())
-
-    # Escribir la tabla comparativa en la hoja
-    for i, row in enumerate(dataframe_to_rows(tabla_comparativa, index=True, header=True), start=1):
-        for j, value in enumerate(row, start=1):
-            hoja.cell(row=i, column=j, value=value)
-
     # Generar el gráfico de barras comparativo
     grafico_barras_comparativa_path = graficas_barras_comparativa(df_comparativa, "COMPARATIVA AÑO PCL")
     img_comparativa_barras = Image(grafico_barras_comparativa_path)
     hoja.add_image(img_comparativa_barras, 'E5')
 
     # Generar gráfico de pastel comparativo
-    grafico_pastel_comparativa_path = graficas_pastel_belisario_utmdl(df_comparativa, "COMPARATIVA AÑO PCL")
+    grafico_pastel_comparativa_path = graficapastel_ano(df_comparativa, "COMPARATIVA AÑO DTO")
     img_comparativa_pastel = Image(grafico_pastel_comparativa_path)
     hoja.add_image(img_comparativa_pastel, 'E20')
 
@@ -206,7 +208,7 @@ def generar_tablas_dto_y_pcl(libro, df_dto, df_pcl):
     def crear_hoja(nombre_hoja, df):
         df['MES'] = df['FECHA_VISADO'].dt.month
         conteo = df.groupby('MES').size().reset_index(name='TOTAL')
-        conteo['MES'] = conteo['MES'].apply(lambda m: calendar.month_name[m].capitalize())
+        conteo['MES'] = conteo['MES'].apply(lambda m: meses_en_espanol[m].capitalize())
         total_general = conteo['TOTAL'].sum()
         conteo['PORCENTAJE'] = (conteo['TOTAL'] / total_general * 100).round(2).astype(str) + '%'
 
@@ -315,8 +317,8 @@ def procesar_archivos():
     archivo, tipo = subir_archivo()
 
     if archivo and tipo == "xlsx":
-        # Mostrar el selector de mes
-        mes_seleccionado = st.selectbox("Selecciona el mes", list(calendar.month_name[1:]))  # Los meses son de 1 a 12
+        # Mostrar el selector de mes con los meses en español
+        mes_seleccionado = st.selectbox("Selecciona el mes", list(meses_en_espanol.values()))  # Ahora muestra los meses en español
 
         # Leer las hojas DTO y PCL
         df_dto = pd.read_excel(archivo, sheet_name='DTO', parse_dates=['FECHA_VISADO'])
@@ -327,9 +329,9 @@ def procesar_archivos():
         archivo_bytes = BytesIO(archivo.read())
         libro = load_workbook(archivo_bytes)
 
-        # El mes seleccionado es el nombre del mes. Para convertirlo en el número del mes, usamos calendar.month_name
-        mes_num = list(calendar.month_name[1:]).index(mes_seleccionado) + 1  # Obtiene el índice del mes (1-12)
-        
+        # Convertir el mes seleccionado a número usando el diccionario
+        mes_num = list(meses_en_espanol.values()).index(mes_seleccionado) + 1  # Obtiene el índice del mes (1-12)
+
         # Llamar a la función para generar las hojas con el mes seleccionado
         crear_hoja_mes_seleccionado(libro, f"DTO_{mes_seleccionado}", df_dto, mes_num)
         crear_hoja_mes_seleccionado(libro, f"PCL_{mes_seleccionado}", df_pcl, mes_num)
@@ -348,3 +350,4 @@ def procesar_archivos():
         st.success("✅ Archivo generado con éxito.")
     elif archivo and tipo == "csv":
         st.warning("Actualmente el procesamiento está disponible solo para archivos .xlsx con hojas DTO y PCL.")
+
