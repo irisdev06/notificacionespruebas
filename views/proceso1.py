@@ -50,6 +50,19 @@ def graficas_pastel(df, nombre_hoja):
     plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
     return grafico_path
 
+def graficas_pastel_belisario_utmdl(df, nombre_hoja):
+    # Agrupar por NOTIFICADOR (BELISARIO y UTMDL)
+    conteo = df[df['NOTIFICADOR'].isin(['BELISARIO', 'UTMDL'])].groupby('NOTIFICADOR').size()
+    
+    # Crear una gráfica de pastel para BELISARIO y UTMDL
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.pie(conteo, labels=conteo.index, autopct='%1.1f%%', startangle=90, colors=colores)
+    ax.legend(title='Notificadores', loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10)
+
+    grafico_path = f"{nombre_hoja}_grafico_pastel_belisario_utmdl.png"
+    plt.tight_layout()
+    plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
+    return grafico_path
 
 # ------------------------------------------------------------------------------- FUNCIÓN PARA CREAR HOJA FILTRADA POR MES -------------------------------------------------------------
 def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
@@ -69,7 +82,7 @@ def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
         for j, value in enumerate(row, start=1):
             hoja.cell(row=i, column=j, value=value)
 
-    # Generar gráficos
+    # Generar gráficos de barras y pastel por mes
     grafico_barras_path = graficas_barras(df_mes, colores, nombre_hoja)
     img_barras = Image(grafico_barras_path)
     hoja.add_image(img_barras, 'E5')
@@ -78,6 +91,10 @@ def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
     img_pastel = Image(grafico_pastel_path)
     hoja.add_image(img_pastel, 'E20')
 
+    # Generar gráfica de pastel para BELISARIO y UTMDL
+    grafico_belisario_utmdl_path = graficas_pastel_belisario_utmdl(df, nombre_hoja)
+    img_belisario_utmdl = Image(grafico_belisario_utmdl_path)
+    hoja.add_image(img_belisario_utmdl, 'E35')  # Colocar la imagen más abajo en la hoja
 
 # ------------------------------------------------------------------------------- GENERAR TABLAS Y GRÁFICOS PARA DTO Y PCL -------------------------------------------------------------
 def generar_tablas_dto_y_pcl(libro, df_dto, df_pcl):
