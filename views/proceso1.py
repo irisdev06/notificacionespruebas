@@ -37,6 +37,57 @@ def graficas_barras(df, colores, nombre_hoja):
     return grafico_path
 
 
+def graficas_barras_comparativa(df, nombre_hoja):
+    # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
+    df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO397', 'GESTAR INNOVACION'])]
+    
+    conteo = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
+    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
+    
+    # Crear la gráfica de barras
+    fig, ax = plt.subplots(figsize=(12, 8))
+    conteo.plot(kind='bar', ax=ax, color=colores)
+    ax.set_xlabel('Mes')
+    ax.set_ylabel('Número de Datos')
+    ax.legend(title='Notificadores', bbox_to_anchor=(1.2, 1), loc='upper left', fontsize=10)
+
+    for p in ax.patches:
+        ax.annotate(f'{p.get_height()}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    xytext=(0, 5),
+                    textcoords='offset points',
+                    ha='center', va='bottom', fontsize=10, color='black')
+
+    grafico_path = f"{nombre_hoja}_grafico_barras_comparativa.png"
+    plt.tight_layout()
+    plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
+    return grafico_path
+
+def graficas_barras_belisario_utmdl(df, nombre_hoja, mes):
+    # Filtrar solo los datos de BELISARIO y UTMDL para el mes seleccionado
+    df_filtrado = df[(df['NOTIFICADOR'].isin(['BELISARIO', 'UTMDL'])) & (df['MES'] == mes)]
+    
+    conteo = df_filtrado.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
+    conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
+    
+    # Crear la gráfica de barras
+    fig, ax = plt.subplots(figsize=(12, 8))
+    conteo.plot(kind='bar', ax=ax, color=colores)
+    ax.set_xlabel('Mes')
+    ax.set_ylabel('Número de Datos')
+    ax.legend(title='Notificadores', bbox_to_anchor=(1.2, 1), loc='upper left', fontsize=10)
+
+    for p in ax.patches:
+        ax.annotate(f'{p.get_height()}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    xytext=(0, 5),
+                    textcoords='offset points',
+                    ha='center', va='bottom', fontsize=10, color='black')
+
+    grafico_path = f"{nombre_hoja}_grafico_barras_belisario_utmdl_{mes}.png"
+    plt.tight_layout()
+    plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
+    return grafico_path
 # ------------------------------------------------------------------------------- GRÁFICOS DE PASTEL -------------------------------------------------------------
 def graficas_pastel(df, nombre_hoja):
     conteo = df.groupby('MES').size()
@@ -64,7 +115,7 @@ def graficas_pastel_belisario_utmdl(df, nombre_hoja):
     plt.savefig(grafico_path, transparent=True, bbox_inches="tight")
     return grafico_path
 
-# ------------------------------------------------------------------------------- FUNCIÓN PARA CREAR HOJA FILTRADA POR MES -------------------------------------------------------------
+# ------------------------------------------------------------------------------- HOJAS -------------------------------------------------------------
 def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
     # Asegurarse de que la columna 'MES' esté presente en el DataFrame antes de filtrar
     df['MES'] = df['FECHA_VISADO'].dt.month
@@ -83,18 +134,42 @@ def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
             hoja.cell(row=i, column=j, value=value)
 
     # Generar gráficos de barras y pastel por mes
-    grafico_barras_path = graficas_barras(df_mes, colores, nombre_hoja)
-    img_barras = Image(grafico_barras_path)
-    hoja.add_image(img_barras, 'E5')
-
-    grafico_pastel_path = graficas_pastel(df_mes, nombre_hoja)
-    img_pastel = Image(grafico_pastel_path)
-    hoja.add_image(img_pastel, 'E20')
+    grafico_barras_belisario_utmdl_path = graficas_barras_belisario_utmdl(df, nombre_hoja, mes)  # Ahora pasa el mes
+    img_barras_belisario_utmdl = Image(grafico_barras_belisario_utmdl_path)
+    hoja.add_image(img_barras_belisario_utmdl, 'E5')
 
     # Generar gráfica de pastel para BELISARIO y UTMDL
     grafico_belisario_utmdl_path = graficas_pastel_belisario_utmdl(df, nombre_hoja)
     img_belisario_utmdl = Image(grafico_belisario_utmdl_path)
     hoja.add_image(img_belisario_utmdl, 'E35')  # Colocar la imagen más abajo en la hoja
+
+def crear_comparativa_ano(libro, df):
+    # Crear la hoja "COMPARATIVA AÑO"
+    if "COMPARATIVA AÑO" in libro.sheetnames:
+        del libro["COMPARATIVA AÑO"]
+    hoja = libro.create_sheet("COMPARATIVA AÑO")
+
+    # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
+    df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO397', 'GESTAR INNOVACION'])]
+
+    # Crear la tabla comparativa por mes
+    tabla_comparativa = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
+    tabla_comparativa.index = tabla_comparativa.index.map(lambda m: calendar.month_name[m].capitalize())
+
+    # Escribir la tabla comparativa en la hoja
+    for i, row in enumerate(dataframe_to_rows(tabla_comparativa, index=True, header=True), start=1):
+        for j, value in enumerate(row, start=1):
+            hoja.cell(row=i, column=j, value=value)
+
+    # Generar el gráfico de barras comparativo
+    grafico_barras_comparativa_path = graficas_barras_comparativa(df_comparativa, "COMPARATIVA AÑO")
+    img_comparativa_barras = Image(grafico_barras_comparativa_path)
+    hoja.add_image(img_comparativa_barras, 'E5')
+
+    # Generar gráfico de pastel comparativo
+    grafico_pastel_comparativa_path = graficas_pastel_belisario_utmdl(df_comparativa, "COMPARATIVA AÑO")
+    img_comparativa_pastel = Image(grafico_pastel_comparativa_path)
+    hoja.add_image(img_comparativa_pastel, 'E20')
 
 # ------------------------------------------------------------------------------- GENERAR TABLAS Y GRÁFICOS PARA DTO Y PCL -------------------------------------------------------------
 def generar_tablas_dto_y_pcl(libro, df_dto, df_pcl):
@@ -159,7 +234,6 @@ def generar_tablas_dto_y_pcl(libro, df_dto, df_pcl):
     # Crear las hojas para DTO y PCL
     crear_hoja("TABLA MES DTO", df_dto)
     crear_hoja("TABLA MES PCL", df_pcl)
-
 
 # ------------------------------------------------------------------------------- FUNCIONES DE SUBIDA Y DESCARGA -------------------------------------------------------------
 def descargar_archivo(output, nombre="archivo_procesado.xlsx"):
@@ -233,6 +307,9 @@ def procesar_archivos():
 
         # Llamar a la función para generar las tablas de DTO y PCL
         generar_tablas_dto_y_pcl(libro, df_dto, df_pcl)
+
+        # Llamar a la función para crear la hoja de comparativa de año
+        crear_comparativa_ano(libro, df_dto)  # También puedes pasar df_pcl si es necesario
 
         output = BytesIO()
         libro.save(output)
