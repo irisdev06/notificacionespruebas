@@ -39,7 +39,7 @@ def graficas_barras(df, colores, nombre_hoja):
 
 def graficas_barras_comparativa(df, nombre_hoja):
     # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
-    df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO397', 'GESTAR INNOVACION'])]
+    df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
     
     conteo = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
     conteo.index = conteo.index.map(lambda m: calendar.month_name[m].capitalize())
@@ -116,6 +116,7 @@ def graficas_pastel_belisario_utmdl(df, nombre_hoja):
     return grafico_path
 
 # ------------------------------------------------------------------------------- HOJAS -------------------------------------------------------------
+# Hoja por Mes Seleccionado
 def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
     # Asegurarse de que la columna 'MES' esté presente en el DataFrame antes de filtrar
     df['MES'] = df['FECHA_VISADO'].dt.month
@@ -143,14 +144,15 @@ def crear_hoja_mes_seleccionado(libro, nombre_hoja, df, mes):
     img_belisario_utmdl = Image(grafico_belisario_utmdl_path)
     hoja.add_image(img_belisario_utmdl, 'E35')  # Colocar la imagen más abajo en la hoja
 
-def crear_comparativa_ano(libro, df):
-    # Crear la hoja "COMPARATIVA AÑO"
-    if "COMPARATIVA AÑO" in libro.sheetnames:
-        del libro["COMPARATIVA AÑO"]
-    hoja = libro.create_sheet("COMPARATIVA AÑO")
+# Hoja "COMPARATIVA AÑO"
+def crear_comparativa_ano_dto(libro, df_dto):
+    # Crear la hoja "COMPARATIVA AÑO DTO"
+    if "COMPARATIVA AÑO DTO" in libro.sheetnames:
+        del libro["COMPARATIVA AÑO DTO"]
+    hoja = libro.create_sheet("COMPARATIVA AÑO DTO")
 
     # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
-    df_comparativa = df[df['NOTIFICADOR'].isin(['BELISARIO397', 'GESTAR INNOVACION'])]
+    df_comparativa = df_dto[df_dto['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
 
     # Crear la tabla comparativa por mes
     tabla_comparativa = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
@@ -162,19 +164,46 @@ def crear_comparativa_ano(libro, df):
             hoja.cell(row=i, column=j, value=value)
 
     # Generar el gráfico de barras comparativo
-    grafico_barras_comparativa_path = graficas_barras_comparativa(df_comparativa, "COMPARATIVA AÑO")
+    grafico_barras_comparativa_path = graficas_barras_comparativa(df_comparativa, "COMPARATIVA AÑO DTO")
     img_comparativa_barras = Image(grafico_barras_comparativa_path)
     hoja.add_image(img_comparativa_barras, 'E5')
 
     # Generar gráfico de pastel comparativo
-    grafico_pastel_comparativa_path = graficas_pastel_belisario_utmdl(df_comparativa, "COMPARATIVA AÑO")
+    grafico_pastel_comparativa_path = graficas_pastel_belisario_utmdl(df_comparativa, "COMPARATIVA AÑO DTO")
     img_comparativa_pastel = Image(grafico_pastel_comparativa_path)
     hoja.add_image(img_comparativa_pastel, 'E20')
 
-# ------------------------------------------------------------------------------- GENERAR TABLAS Y GRÁFICOS PARA DTO Y PCL -------------------------------------------------------------
+# Hoja "COMPARATIVA AÑO PCL"
+def crear_comparativa_ano_pcl(libro, df_pcl):
+    if "COMPARATIVA AÑO PCL" in libro.sheetnames:
+        del libro["COMPARATIVA AÑO PCL"]
+    hoja = libro.create_sheet("COMPARATIVA AÑO PCL")
+
+    # Filtrar solo los datos de BELISARIO397 y GESTAR INNOVACION
+    df_comparativa = df_pcl[df_pcl['NOTIFICADOR'].isin(['BELISARIO 397', 'GESTAR INNOVACION'])]
+
+    # Crear la tabla comparativa por mes
+    tabla_comparativa = df_comparativa.groupby(['MES', 'NOTIFICADOR']).size().unstack(fill_value=0)
+    tabla_comparativa.index = tabla_comparativa.index.map(lambda m: calendar.month_name[m].capitalize())
+
+    # Escribir la tabla comparativa en la hoja
+    for i, row in enumerate(dataframe_to_rows(tabla_comparativa, index=True, header=True), start=1):
+        for j, value in enumerate(row, start=1):
+            hoja.cell(row=i, column=j, value=value)
+
+    # Generar el gráfico de barras comparativo
+    grafico_barras_comparativa_path = graficas_barras_comparativa(df_comparativa, "COMPARATIVA AÑO PCL")
+    img_comparativa_barras = Image(grafico_barras_comparativa_path)
+    hoja.add_image(img_comparativa_barras, 'E5')
+
+    # Generar gráfico de pastel comparativo
+    grafico_pastel_comparativa_path = graficas_pastel_belisario_utmdl(df_comparativa, "COMPARATIVA AÑO PCL")
+    img_comparativa_pastel = Image(grafico_pastel_comparativa_path)
+    hoja.add_image(img_comparativa_pastel, 'E20')
+
+# ------------------------------------------------------------------------------- GENERAR TABLAS PARA DTO Y PCL: TABLA MES -------------------------------------------------------------
 def generar_tablas_dto_y_pcl(libro, df_dto, df_pcl):
     def crear_hoja(nombre_hoja, df):
-        # Asegurarse de que la columna 'MES' esté presente en el DataFrame antes de realizar el agrupamiento
         df['MES'] = df['FECHA_VISADO'].dt.month
         conteo = df.groupby('MES').size().reset_index(name='TOTAL')
         conteo['MES'] = conteo['MES'].apply(lambda m: calendar.month_name[m].capitalize())
@@ -309,7 +338,8 @@ def procesar_archivos():
         generar_tablas_dto_y_pcl(libro, df_dto, df_pcl)
 
         # Llamar a la función para crear la hoja de comparativa de año
-        crear_comparativa_ano(libro, df_dto)  # También puedes pasar df_pcl si es necesario
+        crear_comparativa_ano_dto(libro, df_dto)
+        crear_comparativa_ano_pcl(libro, df_pcl)
 
         output = BytesIO()
         libro.save(output)
